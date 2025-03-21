@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            background: linear-gradient(to right, #1d4350, #a43931);
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 2.5rem;
+        }
+        #course-form, #student-registrations, #reports {
+            margin: 20px auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+        }
+        #course-form h2, #student-registrations h2, #reports h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        form input, form button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        form button {
+            background: #a43931;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        form button:hover {
+            background: #1d4350;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table th, table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #fff;
+        }
+        table th {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        button {
+            padding: 10px 20px;
+            background: #a43931;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background: #1d4350;
+        }
+    </style>
+    <script src="/js/app.js" defer></script>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+
+    <!-- Add/Edit Course Form -->
+    <div id="course-form">
+        <h2>Add/Edit Course</h2>
+        <form id="add-edit-course-form" method="POST" action="/course/courses">
+            <label for="code">Course Code:</label>
+            <input type="text" id="code" name="code" required>
+
+            <label for="title">Title:</label>
+            <input type="text" id="title" name="title" required>
+
+            <label for="department">Department:</label>
+            <input type="text" id="department" name="department" required>
+
+            <label for="level">Level:</label>
+            <input type="number" id="level" name="level" required>
+
+            <label for="days">Days:</label>
+            <input type="text" id="days" name="schedule[days]" placeholder="e.g., Monday, Wednesday" required>
+
+            <label for="startTime">Start Time:</label>
+            <input type="time" id="startTime" name="schedule[startTime]" required>
+
+            <label for="endTime">End Time:</label>
+            <input type="time" id="endTime" name="schedule[endTime]" required>
+
+            <label for="seats">Seats:</label>
+            <input type="number" id="seats" name="seats" required>
+
+            <label for="prerequisites">Prerequisites (comma-separated):</label>
+            <input type="text" id="prerequisites" name="prerequisites">
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+    <!-- Student Registrations Table -->
+    <div id="student-registrations">
+        <h2>Manage Student Registrations</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Roll Number</th>
+                    <th>Name</th>
+                    <th>Registered Courses</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="student-registrations-body">
+                <!-- Dynamically populated rows -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Generate Reports -->
+    <div id="reports">
+        <h2>Generate Reports</h2>
+        <button onclick="window.location.href='/course/courses/report/csv'">Download CSV</button>
+        <button onclick="window.location.href='/course/courses/report/pdf'">Download PDF</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const studentRegistrationsBody = document.getElementById('student-registrations-body');
+
+            // Fetch student registrations
+            try {
+                const response = await fetch('/course/students/registrations');
+                const students = await response.json();
+
+                // Populate the table with student data
+                studentRegistrationsBody.innerHTML = ''; // Clear existing rows
+                students.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${student.rollNumber}</td>
+                        <td>${student.name}</td>
+                        <td>${student.registeredCourses.join(', ') || 'None'}</td>
+                        <td>
+                            <button onclick="removeStudentRegistration('${student._id}')">Remove</button>
+                        </td>
+                    `;
+                    studentRegistrationsBody.appendChild(row);
+                });
+            } catch (err) {
+                console.error('Failed to fetch student registrations:', err);
+                alert('Failed to fetch student registrations. Please try again.');
+            }
+        });
+
+        // Function to remove a student's registration
+        async function removeStudentRegistration(studentId) {
+            if (!confirm('Are you sure you want to remove this student\'s registration?')) return;
+
+            try {
+                const response = await fetch(`/course/students/${studentId}/registrations`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}) // Optional: Add courseCode if needed
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to remove student registration');
+                }
+
+                alert('Student registration removed successfully!');
+                location.reload(); // Reload the page to refresh the table
+            } catch (err) {
+                console.error(err);
+                alert('Failed to remove student registration. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>

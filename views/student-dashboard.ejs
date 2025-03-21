@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/app.js" defer></script>
+    <style>
+        body {
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            color: black;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 2.5rem;
+        }
+        #filters, #available-courses, #alerts, #prerequisites, #dependency-graph {
+            margin: 20px auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+        }
+        #filters h2, #available-courses h2, #alerts h2, #prerequisites h2, #dependency-graph h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        #filters form, #available-courses ul, #prerequisites ul {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #filters label, #filters input, #filters select, #filters button {
+            font-size: 1rem;
+        }
+        #filters input, #filters select, #filters button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+        #filters button {
+            background: #2a5298;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        #filters button:hover {
+            background: #1e3c72;
+        }
+        #available-courses ul {
+            list-style: none;
+            padding: 0;
+        }
+        #available-courses li {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: grab;
+            transition: background 0.3s ease;
+        }
+        #available-courses li:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        #calendar {
+            margin: 20px auto;
+            max-width: 800px;
+            background: #fff;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        #alerts p {
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        #alerts #conflict-alert {
+            font-weight: bold;
+        }
+        #dependency-graph canvas {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Student Dashboard</h1>
+
+    <!-- Course Filters -->
+    <div id="filters">
+        <h2>Filter Courses</h2>
+        <form id="filter-form">
+            <label for="department">Department:</label>
+            <select id="department" name="department">
+                <option value="">All</option>
+                <option value="CS">Computer Science</option>
+                <option value="EE">Electrical Engineering</option>
+                <!-- Add more departments as needed -->
+            </select>
+
+            <label for="time">Time:</label>
+            <input type="time" id="time" name="time">
+
+            <label for="days">Days:</label>
+            <select id="days" name="days">
+                <option value="">All</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <!-- Add more days as needed -->
+            </select>
+
+            <label for="seats">Seats Available:</label>
+            <input type="number" id="seats" name="seats" min="1">
+
+            <button type="submit">Apply Filters</button>
+        </form>
+    </div>
+
+    <!-- Available Courses -->
+    <div id="available-courses">
+        <h2>Available Courses</h2>
+        <ul id="course-list">
+            <!-- Dynamically populated list of courses -->
+        </ul>
+    </div>
+
+    <!-- Registered Courses Button -->
+    <div id="registered-courses">
+        <h2>Registered Courses</h2>
+        <button onclick="openRegisteredCoursesModal()">View Registered Courses</button>
+    </div>
+
+    <!-- Add to Calendar Modal -->
+    <div id="add-to-calendar-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+        <h2>Add Course to Calendar</h2>
+        <form id="add-to-calendar-form">
+            <input type="hidden" id="course-code" name="courseCode">
+            <label for="day">Day:</label>
+            <select id="day" name="day" required>
+                <option value="0">Sunday</option>
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+            </select>
+            <label for="start-time">Start Time:</label>
+            <input type="time" id="start-time" name="startTime" required>
+            <label for="end-time">End Time:</label>
+            <input type="time" id="end-time" name="endTime" required>
+            <button type="submit">Add to Calendar</button>
+            <button type="button" onclick="closeModal()">Cancel</button>
+        </form>
+    </div>
+
+    <!-- Registered Courses Modal -->
+    <div id="registered-courses-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+        <h2>Your Registered Courses</h2>
+        <table border="1" style="width: 100%; text-align: left;">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Title</th>
+                    <th>Department</th>
+                    <th>Schedule</th>
+                    <th>Seats</th>
+                </tr>
+            </thead>
+            <tbody id="registered-courses-list">
+                <!-- Dynamically populated rows -->
+            </tbody>
+        </table>
+        <button onclick="closeRegisteredCoursesModal()">Close</button>
+    </div>
+
+    <script>
+        function openModal(courseCode) {
+            document.getElementById('course-code').value = courseCode;
+            document.getElementById('add-to-calendar-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('add-to-calendar-modal').style.display = 'none';
+        }
+
+        function openRegisteredCoursesModal() {
+            fetch('/course/registered-courses')
+                .then(response => response.json())
+                .then(courses => {
+                    const list = document.getElementById('registered-courses-list');
+                    list.innerHTML = ''; // Clear existing rows
+                    courses.forEach(course => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${course.code}</td>
+                            <td>${course.title}</td>
+                            <td>${course.department}</td>
+                            <td>${course.schedule.days.join(', ')} (${course.schedule.startTime} - ${course.schedule.endTime})</td>
+                            <td>${course.seats}</td>
+                        `;
+                        list.appendChild(row);
+                    });
+                    document.getElementById('registered-courses-modal').style.display = 'block';
+                })
+                .catch(err => {
+                    console.error('Failed to fetch registered courses:', err);
+                    alert('Failed to fetch registered courses. Please try again.');
+                });
+        }
+
+        function closeRegisteredCoursesModal() {
+            document.getElementById('registered-courses-modal').style.display = 'none';
+        }
+
+        async function fetchUnmetPrerequisites() {
+            try {
+                const response = await fetch('/course/courses/unmet-prerequisites');
+                const unmetCourses = await response.json();
+                const list = document.getElementById('unmet-prerequisites-list');
+                list.innerHTML = '';
+                unmetCourses.forEach(course => {
+                    const li = document.createElement('li');
+                    li.textContent = `${course.title} (${course.code}) - Prerequisites: ${course.prerequisites.join(', ')}`;
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Failed to fetch unmet prerequisites:', err);
+            }
+        }
+        fetchUnmetPrerequisites();
+    </script>
+
+    <!-- Weekly Calendar -->
+    <div id="calendar"></div>
+
+    <!-- Real-time Seat Counter and Conflict Alerts -->
+    <div id="alerts">
+        <h2>Alerts</h2>
+        <p id="seat-counter">Seats Available: <span>0</span></p>
+        <p id="conflict-alert" style="color: red; display: none;">Schedule conflict detected!</p>
+    </div>
+
+    <!-- Prerequisite Tooltips -->
+    <div id="prerequisites">
+        <h2>Prerequisites</h2>
+        <p>Hover over a course to see its prerequisites.</p>
+        <ul id="prerequisite-list">
+            <!-- Prerequisite tooltips will be dynamically populated -->
+        </ul>
+    </div>
+
+    <!-- Unmet Prerequisites -->
+    <div id="unmet-prerequisites">
+        <h2>Unmet Prerequisites</h2>
+        <ul id="unmet-prerequisites-list">
+            <!-- Dynamically populated list -->
+        </ul>
+    </div>
+
+    <!-- Dependency Graph -->
+    <div id="dependency-graph">
+        <h2>Dependency Graph</h2>
+        <canvas id="dependencyCanvas" width="800" height="400"></canvas>
+    </div>
+</body>
+</html>
