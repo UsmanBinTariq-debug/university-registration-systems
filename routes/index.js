@@ -32,7 +32,6 @@ router.get('/admin/dashboard', (req, res) => {
 router.get('/simulate', async (req, res) => {
     const io = req.app.get('socketio');
 
-    // Simulate student login
     const student = await require('../models/Student').findOne({ rollNumber: '12345' });
     if (!student) {
         return res.status(404).send('Student not found');
@@ -40,29 +39,24 @@ router.get('/simulate', async (req, res) => {
     req.session.user = { id: student._id, role: 'student' };
     console.log('Student logged in:', student.name);
 
-    // Simulate filtering courses
     const filteredCourses = await require('../models/Course').find({ department: 'CS', seats: { $gte: 1 } });
     console.log('Filtered courses:', filteredCourses.map(course => course.title));
 
-    // Simulate adding a course
     const courseToAdd = filteredCourses[0];
     if (courseToAdd) {
         student.registeredCourses.push(courseToAdd.code);
         await student.save();
         console.log('Added course:', courseToAdd.title);
 
-        // Emit seat update
         io.emit('seatUpdate', { code: courseToAdd.code, seats: courseToAdd.seats - 1 });
     }
 
-    // Simulate removing a course
     const courseToRemove = student.registeredCourses.pop();
     if (courseToRemove) {
         await student.save();
         console.log('Removed course:', courseToRemove);
     }
 
-    // Simulate checking prerequisites
     const unmetPrerequisites = courseToAdd.prerequisites.filter(prerequisite => !student.completedPrerequisites.includes(prerequisite));
     if (unmetPrerequisites.length > 0) {
         console.log('Unmet prerequisites for', courseToAdd.title, ':', unmetPrerequisites);
@@ -70,7 +64,6 @@ router.get('/simulate', async (req, res) => {
         console.log('All prerequisites met for', courseToAdd.title);
     }
 
-    // Simulate conflict detection
     const registeredCourses = await require('../models/Course').find({ code: { $in: student.registeredCourses } });
     const overlaps = [];
     for (let i = 0; i < registeredCourses.length; i++) {
@@ -100,7 +93,6 @@ router.get('/simulate', async (req, res) => {
 router.get('/simulate-admin', async (req, res) => {
     const io = req.app.get('socketio');
 
-    // Simulate admin adding a course
     const Course = require('../models/Course');
     const newCourse = new Course({
         code: 'CS101',
@@ -118,7 +110,6 @@ router.get('/simulate-admin', async (req, res) => {
     await newCourse.save();
     console.log('Added course:', newCourse.title);
 
-    // Simulate overriding a registration
     const Student = require('../models/Student');
     const student = await Student.findOne({ rollNumber: '12345' });
     if (student) {
@@ -129,13 +120,11 @@ router.get('/simulate-admin', async (req, res) => {
         console.log('Student not found for overriding registration');
     }
 
-    // Simulate adjusting seats
     newCourse.seats = 25;
     await newCourse.save();
     io.emit('seatUpdate', { code: newCourse.code, seats: newCourse.seats });
     console.log('Adjusted seats for course:', newCourse.title);
 
-    // Simulate generating reports
     const courses = await Course.find();
     const students = await Student.find();
     console.log('Generated course report:', courses.map(course => course.title));

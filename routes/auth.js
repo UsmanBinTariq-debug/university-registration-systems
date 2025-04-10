@@ -5,7 +5,6 @@ const Admin = require('../models/Admin');
 
 const router = express.Router();
 
-// Student Login
 router.post('/student/login', async (req, res) => {
     const { rollNumber } = req.body;
     try {
@@ -14,13 +13,12 @@ router.post('/student/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid roll number' });
         }
         req.session.user = { id: student._id, role: 'student' };
-        res.redirect('/student/dashboard'); // Redirect to student dashboard
+        res.redirect('/student/dashboard'); 
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
 
-// Admin Login
 router.post('/admin/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -39,7 +37,6 @@ router.post('/admin/login', async (req, res) => {
     }
 });
 
-// Logout
 router.post('/logout', (req, res) => {
     req.session.destroy(err => {
         if (err) {
