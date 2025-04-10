@@ -5,7 +5,6 @@ const PDFDocument = require('pdfkit');
 
 const router = express.Router();
 
-// Fetch all courses with optional filters
 router.get('/courses', async (req, res) => {
     const { department, time, days, seats } = req.query;
     const query = {};
@@ -18,7 +17,6 @@ router.get('/courses', async (req, res) => {
     }
     if (seats) query.seats = { $gte: parseInt(seats, 10) };
 
-    // Only fetch courses with valid schedules
     query['schedule.startTime'] = { $exists: true, $ne: null };
     query['schedule.endTime'] = { $exists: true, $ne: null };
 
@@ -30,7 +28,6 @@ router.get('/courses', async (req, res) => {
     }
 });
 
-// Check seat availability for a course
 router.get('/courses/:code/seats', async (req, res) => {
     const { code } = req.params;
     try {
@@ -44,12 +41,10 @@ router.get('/courses/:code/seats', async (req, res) => {
     }
 });
 
-// Manage course schedules (real-time updates via WebSocket)
 router.post('/courses/:code/schedule', async (req, res) => {
     const { code } = req.params;
     const { days, startTime, endTime } = req.body;
 
-    // Log the received data for debugging
     console.log('Received schedule data:', { code, days, startTime, endTime });
 
     try {
@@ -59,22 +54,18 @@ router.post('/courses/:code/schedule', async (req, res) => {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        // Ensure `days` is an array
         const normalizedDays = Array.isArray(days) ? days : [days];
 
-        // Simplified validation: Ensure required fields are present
         if (!normalizedDays || !startTime || !endTime) {
             console.error(`Missing required schedule data for course: ${code}`);
-            console.log('Request body:', req.body); // Log the full request body for debugging
+            console.log('Request body:', req.body); 
             return res.status(400).json({ message: 'Missing required schedule data' });
         }
 
-        // Update the course schedule and decrement the seat count
         course.schedule = { days: normalizedDays, startTime, endTime };
         course.seats -= 1;
         await course.save();
 
-        // Associate the course with the logged-in student
         if (req.session.user && req.session.user.role === 'student') {
             const studentId = req.session.user.id;
             const Student = require('../models/Student');
@@ -85,7 +76,6 @@ router.post('/courses/:code/schedule', async (req, res) => {
                 return res.status(404).json({ message: 'Student not found' });
             }
 
-            // Add the course to the student's registeredCourses array if not already added
             if (!student.registeredCourses.includes(code)) {
                 student.registeredCourses.push(code);
                 await student.save();
@@ -93,7 +83,6 @@ router.post('/courses/:code/schedule', async (req, res) => {
             }
         }
 
-        // Emit seat update to all connected clients
         const io = req.app.get('socketio');
         io.emit('seatUpdate', { code: course.code, seats: course.seats });
 
@@ -105,7 +94,6 @@ router.post('/courses/:code/schedule', async (req, res) => {
     }
 });
 
-// Add a new course
 router.post('/courses', async (req, res) => {
     const { code, title, department, level, schedule, seats, prerequisites } = req.body;
     try {
@@ -117,7 +105,6 @@ router.post('/courses', async (req, res) => {
         res.redirect('/admin/dashboard'); // Redirect to admin dashboard after success
     } catch (err) {
         if (err.code === 11000) {
-            // Handle duplicate key error
             res.status(400).send('Course with this code already exists. <a href="/admin/dashboard">Go back</a>');
         } else {
             res.status(500).send('Server error occurred. <a href="/admin/dashboard">Go back</a>');
@@ -125,7 +112,6 @@ router.post('/courses', async (req, res) => {
     }
 });
 
-// Edit an existing course
 router.put('/courses/:code', async (req, res) => {
     const { code } = req.params;
     const updates = req.body;
@@ -140,7 +126,6 @@ router.put('/courses/:code', async (req, res) => {
     }
 });
 
-// Override course registrations
 router.post('/courses/:code/override', async (req, res) => {
     const { code } = req.params;
     const { studentRollNumber } = req.body;
@@ -149,14 +134,12 @@ router.post('/courses/:code/override', async (req, res) => {
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
-        // Logic to override registration (e.g., bypass prerequisites or seat limits)
         res.status(200).json({ message: `Registration overridden for student ${studentRollNumber}` });
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
 
-// Adjust seats for a course
 router.put('/courses/:code/seats', async (req, res) => {
     const { code } = req.params;
     const { seats } = req.body; // Seats adjustment value (e.g., -1 for decrease, +1 for increase)
@@ -166,7 +149,6 @@ router.put('/courses/:code/seats', async (req, res) => {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        // Update the seat count
         const newSeatCount = course.seats + seats;
         if (newSeatCount < 0) {
             return res.status(400).json({ message: 'No seats available' });
@@ -174,7 +156,6 @@ router.put('/courses/:code/seats', async (req, res) => {
         course.seats = newSeatCount;
         await course.save();
 
-        // Emit seat update to all connected clients
         const io = req.app.get('socketio');
         io.emit('seatUpdate', { code: course.code, seats: course.seats });
 
@@ -184,7 +165,6 @@ router.put('/courses/:code/seats', async (req, res) => {
     }
 });
 
-// Generate reports (CSV)
 router.get('/courses/report/csv', async (req, res) => {
     try {
         const courses = await Course.find();
@@ -199,7 +179,6 @@ router.get('/courses/report/csv', async (req, res) => {
     }
 });
 
-// Generate reports (PDF)
 router.get('/courses/report/pdf', async (req, res) => {
     try {
         const courses = await Course.find();
@@ -217,7 +196,6 @@ router.get('/courses/report/pdf', async (req, res) => {
     }
 });
 
-// Fetch registered courses for the logged-in student
 router.get('/registered-courses', async (req, res) => {
     try {
         if (!req.session.user || req.session.user.role !== 'student') {
@@ -229,7 +207,6 @@ router.get('/registered-courses', async (req, res) => {
             return res.status(404).json({ message: 'Student not found' });
         }
 
-        // Fetch detailed course information
         const courses = await Course.find({ code: { $in: student.registeredCourses } });
         res.status(200).json(courses);
     } catch (err) {
@@ -238,7 +215,6 @@ router.get('/registered-courses', async (req, res) => {
     }
 });
 
-// Fetch courses with unmet prerequisites for a student
 router.get('/courses/unmet-prerequisites', async (req, res) => {
     try {
         if (!req.session.user || req.session.user.role !== 'student') {
@@ -260,7 +236,6 @@ router.get('/courses/unmet-prerequisites', async (req, res) => {
     }
 });
 
-// Fetch all students and their registered courses
 router.get('/students/registrations', async (req, res) => {
     try {
         const Student = require('../models/Student');
@@ -272,11 +247,10 @@ router.get('/students/registrations', async (req, res) => {
     }
 });
 
-// Remove a student's registration
 router.delete('/students/:id/registrations', async (req, res) => {
     try {
         const { id } = req.params;
-        const { courseCode } = req.body; // Optional: Specify the course to remove
+        const { courseCode } = req.body;
 
         const Student = require('../models/Student');
         const student = await Student.findById(id);
@@ -285,11 +259,9 @@ router.delete('/students/:id/registrations', async (req, res) => {
             return res.status(404).json({ message: 'Student not found' });
         }
 
-        // Remove the course from the student's registeredCourses array
         if (courseCode) {
             student.registeredCourses = student.registeredCourses.filter(code => code !== courseCode);
         } else {
-            // If no courseCode is provided, clear all registrations
             student.registeredCourses = [];
         }
 

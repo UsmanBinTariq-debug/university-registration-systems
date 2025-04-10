@@ -182,4 +182,4 @@ Contributions are welcome! Please fork the repository and submit a pull request.
 
 For any inquiries or issues, please contact:
 - **Email**: tariqusman664@gmail.com
-- **GitHub**: [UsmanBinTariq-debug](https://github.com/UsmanBinTariq-debug)
+- **GitHub**: [UsmanBinTariq-debug](https://github.com/UsmanBinTariq-debug/university-registration-systems)

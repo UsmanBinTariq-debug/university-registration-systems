@@ -8,12 +8,10 @@ const seedData = async () => {
     try {
         await connectDB();
 
-        // Clear existing data
         await Student.deleteMany();
         await Course.deleteMany();
         await Admin.deleteMany();
 
-        // Seed students
         const students = [
             { rollNumber: '12345', name: 'John Doe', registeredCourses: [], completedPrerequisites: [] },
             { rollNumber: '67890', name: 'Jane Smith', registeredCourses: [], completedPrerequisites: [] },
@@ -21,7 +19,6 @@ const seedData = async () => {
         ];
         await Student.insertMany(students);
 
-        // Seed courses
         const courses = [
             {
                 code: 'CS101',
@@ -44,10 +41,9 @@ const seedData = async () => {
         ];
         await Course.insertMany(courses);
 
-        // Seed admin
         const admin = new Admin({
             username: 'admin',
-            password: 'password123' // Will be hashed by the pre-save hook
+            password: 'password123' 
         });
         await admin.save();
 
